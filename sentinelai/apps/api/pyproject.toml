@@ -1,0 +1,75 @@
+[project]
+name = "sentinelai-api"
+version = "0.1.0"
+description = "SENTINELAI control plane API"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.3",
+  "sqlalchemy[asyncio]==2.0.36",
+  "asyncpg==0.30.0",
+  "psycopg2-binary==2.9.10",
+  "alembic==1.14.0",
+  "pydantic==2.10.3",
+  "pydantic-settings==2.6.1",
+  "email-validator==2.2.0",
+  "python-jose[cryptography]==3.3.0",
+  "passlib[bcrypt]==1.7.4",
+  "bcrypt==4.2.1",
+  "redis==5.2.1",
+  "httpx==0.28.1",
+  "prometheus-client==0.21.1",
+  "opentelemetry-api==1.28.2",
+  "opentelemetry-sdk==1.28.2",
+  "opentelemetry-instrumentation-fastapi==0.49b2",
+  "python-multipart==0.0.20",
+  "orjson==3.10.12",
+  "sentinelai-contracts",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.3.4",
+  "pytest-asyncio==0.24.0",
+  "pytest-cov==6.0.0",
+  "httpx==0.28.1",
+  "ruff==0.8.4",
+  "mypy==1.13.0",
+  "types-passlib==1.7.7.20240819",
+  "types-python-jose==3.3.4.20240106",
+]
+ai = [
+  "openai==1.57.4",
+  "anthropic==0.40.0",
+]
+
+[tool.uv.sources]
+sentinelai-contracts = { path = "../../packages/shared-contracts/python", editable = true }
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]  # FastAPI Query/Depends defaults are intentional
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+packages = ["app"]

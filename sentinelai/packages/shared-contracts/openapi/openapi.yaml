@@ -1,0 +1,929 @@
+openapi: 3.1.0
+info:
+  title: SENTINELAI API
+  version: 0.1.0
+  description: |
+    Autonomous AI Operations and Incident Intelligence Platform.
+    Canonical contract for apps/api and apps/web.
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local Docker Compose
+tags:
+  - name: auth
+  - name: overview
+  - name: services
+  - name: incidents
+  - name: telemetry
+  - name: investigations
+  - name: remediations
+  - name: simulator
+  - name: evaluation
+  - name: audit
+  - name: settings
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Current user
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /overview:
+    get:
+      tags: [overview]
+      summary: Operations dashboard aggregate
+      operationId: getOverview
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/ServiceFilter'
+      responses:
+        '200':
+          description: Overview metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverviewResponse'
+  /services:
+    get:
+      tags: [services]
+      summary: List services
+      operationId: listServices
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+  /incidents:
+    get:
+      tags: [incidents]
+      summary: List incidents
+      operationId: listIncidents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/IncidentStatus'
+        - name: severity
+          in: query
+          schema:
+            $ref: '#/components/schemas/Severity'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated incidents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentPage'
+  /incidents/{incident_id}:
+    get:
+      tags: [incidents]
+      summary: Incident detail
+      operationId: getIncident
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Incident
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /incidents/{incident_id}/investigate:
+    post:
+      tags: [incidents]
+      summary: Start AI investigation
+      operationId: startInvestigation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartInvestigationRequest'
+      responses:
+        '202':
+          description: Investigation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Investigation'
+  /telemetry/logs:
+    get:
+      tags: [telemetry]
+      summary: Search logs
+      operationId: searchLogs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/ServiceFilter'
+        - name: level
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: trace_id
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Log page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogPage'
+    post:
+      tags: [telemetry]
+      summary: Ingest logs (service/internal)
+      operationId: ingestLogs
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogIngestRequest'
+      responses:
+        '202':
+          description: Accepted
+  /investigations/{investigation_id}:
+    get:
+      tags: [investigations]
+      summary: Investigation detail
+      operationId: getInvestigation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: investigation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Investigation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Investigation'
+  /remediations/{remediation_id}/approve:
+    post:
+      tags: [remediations]
+      summary: Approve remediation (human gate)
+      operationId: approveRemediation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: remediation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemediationPlan'
+  /simulator/scenarios/{name}/run:
+    post:
+      tags: [simulator]
+      summary: Run failure scenario
+      operationId: runScenario
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioRunRequest'
+      responses:
+        '202':
+          description: Scenario started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioRunResponse'
+  /evaluation/runs:
+    get:
+      tags: [evaluation]
+      summary: List evaluation runs
+      operationId: listEvaluationRuns
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EvaluationRun'
+    post:
+      tags: [evaluation]
+      summary: Start evaluation run
+      operationId: startEvaluationRun
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartEvaluationRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationRun'
+  /audit:
+    get:
+      tags: [audit]
+      summary: Audit trail (admin)
+      operationId: listAuditEvents
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Audit page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    From:
+      name: from
+      in: query
+      schema:
+        type: string
+        format: date-time
+    To:
+      name: to
+      in: query
+      schema:
+        type: string
+        format: date-time
+    ServiceFilter:
+      name: service
+      in: query
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    IncidentId:
+      name: incident_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    Role:
+      type: string
+      enum: [admin, engineer, viewer]
+    Severity:
+      type: string
+      enum: [critical, high, medium, low, info]
+    IncidentStatus:
+      type: string
+      enum: [open, investigating, mitigating, resolved, closed]
+    InvestigationStatus:
+      type: string
+      enum:
+        - pending
+        - initializing
+        - gathering_context
+        - log_investigation
+        - metrics_investigation
+        - trace_investigation
+        - deployment_investigation
+        - root_cause_analysis
+        - evidence_evaluation
+        - remediation_proposal
+        - awaiting_approval
+        - completed
+        - failed
+        - cancelled
+        - timed_out
+    ServiceStatus:
+      type: string
+      enum: [healthy, degraded, unhealthy, unknown]
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, token_type]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          default: bearer
+    User:
+      type: object
+      required: [id, email, role, full_name, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        full_name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        is_active:
+          type: boolean
+    Service:
+      type: object
+      required: [id, name, display_name, status, environment]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_name:
+          type: string
+        status:
+          $ref: '#/components/schemas/ServiceStatus'
+        environment:
+          type: string
+        base_url:
+          type: string
+    OverviewResponse:
+      type: object
+      required:
+        - total_services
+        - healthy_services
+        - active_incidents
+        - severity_distribution
+        - request_rate
+        - error_rate
+        - latency
+        - resource_utilization
+        - mttr_seconds
+        - ai_investigations
+      properties:
+        total_services:
+          type: integer
+        healthy_services:
+          type: integer
+        active_incidents:
+          type: integer
+        severity_distribution:
+          type: object
+          additionalProperties:
+            type: integer
+        request_rate:
+          type: number
+        error_rate:
+          type: number
+        latency:
+          type: object
+          properties:
+            p50_ms:
+              type: number
+            p95_ms:
+              type: number
+            p99_ms:
+              type: number
+        resource_utilization:
+          type: object
+          properties:
+            cpu_percent:
+              type: number
+            memory_percent:
+              type: number
+        mttr_seconds:
+          type: number
+          nullable: true
+        ai_investigations:
+          type: object
+          properties:
+            active:
+              type: integer
+            completed:
+              type: integer
+            failed:
+              type: integer
+        generated_at:
+          type: string
+          format: date-time
+    Incident:
+      type: object
+      required: [id, title, status, severity, service_names, detected_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/IncidentStatus'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        service_names:
+          type: array
+          items:
+            type: string
+        started_at:
+          type: string
+          format: date-time
+        detected_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        mttr_seconds:
+          type: integer
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+    IncidentPage:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Incident'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+    LogRecord:
+      type: object
+      required: [id, timestamp, service_name, level, message]
+      properties:
+        id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        service_name:
+          type: string
+        level:
+          type: string
+        message:
+          type: string
+        trace_id:
+          type: string
+          nullable: true
+        correlation_id:
+          type: string
+          nullable: true
+        attributes:
+          type: object
+          additionalProperties: true
+    LogPage:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogRecord'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+    LogIngestRequest:
+      type: object
+      required: [logs]
+      properties:
+        logs:
+          type: array
+          items:
+            type: object
+            required: [timestamp, service_name, level, message]
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              service_name:
+                type: string
+              level:
+                type: string
+              message:
+                type: string
+              trace_id:
+                type: string
+              span_id:
+                type: string
+              correlation_id:
+                type: string
+              attributes:
+                type: object
+              environment:
+                type: string
+    EvidenceRef:
+      type: object
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [log, metric, span, trace, deployment, alert]
+        id:
+          type: string
+        label:
+          type: string
+    RootCauseAnalysis:
+      type: object
+      required:
+        - summary
+        - probable_root_cause
+        - confidence
+        - confidence_components
+        - supporting_evidence
+        - alternative_hypotheses
+        - affected_services
+        - business_impact_estimate
+        - recommended_actions
+        - source
+      properties:
+        summary:
+          type: string
+        probable_root_cause:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        confidence_components:
+          type: object
+          additionalProperties:
+            type: number
+        supporting_evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceRef'
+        alternative_hypotheses:
+          type: array
+          items:
+            type: object
+            properties:
+              statement:
+                type: string
+              confidence:
+                type: number
+              evidence:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvidenceRef'
+        affected_services:
+          type: array
+          items:
+            type: string
+        business_impact_estimate:
+          type: string
+          description: Explicitly marked as an estimate in UI and API consumers
+        recommended_actions:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+          enum: [llm, deterministic, hybrid]
+    Investigation:
+      type: object
+      required: [id, incident_id, status, current_step, provider, model]
+      properties:
+        id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/InvestigationStatus'
+        current_step:
+          type: string
+        provider:
+          type: string
+        model:
+          type: string
+        prompt_version:
+          type: string
+        rca:
+          $ref: '#/components/schemas/RootCauseAnalysis'
+        token_usage:
+          type: object
+          additionalProperties: true
+        estimated_cost_usd:
+          type: number
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+    StartInvestigationRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+        model:
+          type: string
+    RemediationPlan:
+      type: object
+      required: [id, investigation_id, incident_id, status, problem_summary, actions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        investigation_id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - proposed
+            - approved
+            - rejected
+            - cancelled
+            - executing
+            - succeeded
+            - failed
+            - rolled_back
+        problem_summary:
+          type: string
+        rationale:
+          type: string
+        actions:
+          type: array
+          items:
+            type: object
+            required: [action_type, parameters]
+            properties:
+              action_type:
+                type: string
+                description: Allowlisted action id only
+              parameters:
+                type: object
+              command_preview:
+                type: string
+        risks:
+          type: string
+        rollback_steps:
+          type: array
+          items:
+            type: string
+        expected_impact:
+          type: string
+          description: Estimate only
+    ScenarioRunRequest:
+      type: object
+      required: [seed, duration_seconds]
+      properties:
+        seed:
+          type: integer
+        duration_seconds:
+          type: integer
+          minimum: 5
+          maximum: 3600
+        services:
+          type: array
+          items:
+            type: string
+    ScenarioRunResponse:
+      type: object
+      required: [run_id, scenario, seed, duration_seconds, status]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        scenario:
+          type: string
+        seed:
+          type: integer
+        duration_seconds:
+          type: integer
+        status:
+          type: string
+    EvaluationRun:
+      type: object
+      required: [id, dataset_version, provider, model, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        dataset_version:
+          type: string
+        provider:
+          type: string
+        model:
+          type: string
+        prompt_version:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        metrics:
+          type: object
+          additionalProperties: true
+          description: Only populated after a real evaluation run
+        created_at:
+          type: string
+          format: date-time
+    StartEvaluationRequest:
+      type: object
+      required: [dataset_version, provider, model]
+      properties:
+        dataset_version:
+          type: string
+        provider:
+          type: string
+        model:
+          type: string
+        prompt_version:
+          type: string
+    AuditEvent:
+      type: object
+      required: [id, action, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+        details:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+    AuditPage:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true

@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Simulator + API targets enabled as services come online (Milestone 3+)
+  - job_name: sentinelai-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+
+  - job_name: simulator-gateway
+    static_configs:
+      - targets: ["gateway:8100"]
+
+  - job_name: simulator-user
+    static_configs:
+      - targets: ["user-service:8101"]
+
+  - job_name: simulator-order
+    static_configs:
+      - targets: ["order-service:8102"]
+
+  - job_name: simulator-payment
+    static_configs:
+      - targets: ["payment-service:8103"]

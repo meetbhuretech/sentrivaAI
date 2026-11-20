@@ -1,0 +1,37 @@
+flowchart LR
+  subgraph clients [Clients]
+    Web[Next.js Web]
+  end
+  subgraph control [Control Plane]
+    API[FastAPI API]
+    Agents[Investigation State Machine]
+    MCP[MCP Tool Server]
+  end
+  subgraph data [Data]
+    PG[(PostgreSQL + pgvector)]
+    Redis[(Redis)]
+    Prom[Prometheus]
+    Graf[Grafana]
+  end
+  subgraph sim [Simulator]
+    GW[API Gateway]
+    US[User Service]
+    OS[Order Service]
+    PS[Payment Service]
+  end
+  Web -->|REST / SSE| API
+  API --> PG
+  API --> Redis
+  API --> Agents
+  Agents --> MCP
+  MCP --> PG
+  GW --> API
+  US --> API
+  OS --> API
+  PS --> API
+  Prom --> GW
+  Prom --> US
+  Prom --> OS
+  Prom --> PS
+  Prom --> API
+  Graf --> Prom

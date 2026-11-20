@@ -1,0 +1,16 @@
+erDiagram
+  users ||--o{ audit_events : acts
+  users ||--o{ remediation_approvals : approves
+  services ||--o{ deployments : has
+  services ||--o{ service_dependencies : source
+  services ||--o{ service_dependencies : target
+  incidents ||--o{ alerts : groups
+  incidents ||--o{ investigations : triggers
+  incidents ||--o{ remediation_plans : proposes
+  investigations ||--o{ investigation_checkpoints : checkpoints
+  investigations ||--o{ agent_findings : produces
+  investigations ||--o{ hypotheses : ranks
+  investigations ||--o{ remediation_plans : yields
+  remediation_plans ||--o{ remediation_approvals : requires
+  remediation_plans ||--o{ remediation_executions : executes
+  telemetry_traces ||--o{ telemetry_spans : contains

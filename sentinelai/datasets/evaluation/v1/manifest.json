@@ -1,0 +1,61 @@
+{
+  "dataset_version": "v1",
+  "description": "Deterministic evaluation cases for SENTINELAI investigation quality.",
+  "human_review_process": "Subjective scores (remediation quality) require dual engineer review before updating expected labels. Automated CI only asserts deterministic fields.",
+  "cases": [
+    {
+      "case_id": "eval-redis-outage",
+      "title": "Redis connection failures on payment path",
+      "expected_root_cause_keywords": ["redis", "connection"],
+      "expected_tools": ["search_logs", "query_metrics", "get_service_health"],
+      "seed_metrics": [
+        {"service_name": "payment-service", "metric_name": "http_error_rate", "value": 0.55}
+      ],
+      "seed_logs": [
+        {
+          "service_name": "payment-service",
+          "level": "ERROR",
+          "message": "Redis connection refused for idempotency key"
+        }
+      ]
+    },
+    {
+      "case_id": "eval-latency-spike",
+      "title": "Elevated p95 latency on order-service",
+      "expected_root_cause_keywords": ["latency", "p95", "order"],
+      "expected_tools": ["query_metrics", "search_logs"],
+      "seed_metrics": [
+        {"service_name": "order-service", "metric_name": "http_latency_p95_ms", "value": 2500},
+        {"service_name": "order-service", "metric_name": "http_error_rate", "value": 0.08}
+      ],
+      "seed_logs": [
+        {
+          "service_name": "order-service",
+          "level": "ERROR",
+          "message": "dependency timeout calling payment-service"
+        }
+      ]
+    },
+    {
+      "case_id": "eval-bad-deploy",
+      "title": "Bad deployment regression",
+      "expected_root_cause_keywords": ["deploy", "regression", "error"],
+      "expected_tools": ["get_deployment_history", "query_metrics", "search_logs"],
+      "seed_metrics": [
+        {"service_name": "api-gateway", "metric_name": "http_error_rate", "value": 0.4}
+      ],
+      "seed_logs": [
+        {
+          "service_name": "api-gateway",
+          "level": "WARN",
+          "message": "Scenario started: bad_deployment seed=42"
+        }
+      ],
+      "seed_deployment": {
+        "service_name": "api-gateway",
+        "version": "bad-42",
+        "notes": "Injected regression deployment for eval"
+      }
+    }
+  ]
+}
